@@ -1,60 +1,89 @@
 # Implémentation d'une Stratégie d'Investissement Quantitative Global Macro Multi-Actifs
 
-**Mémoire de fin d'études — M2 Gestion d'Actifs, Université Paris Nanterre**
-**Auteur :** TAHIR Badr-eddine  |  **Directeur de mémoire :** [À COMPLÉTER : nom du directeur]  |  **2024**
-**Diplômé major de promotion — 16/20**
+**Rapport de Projet de Fin d'Études — Filière Gestion Financière et Comptable, Université Paris Nanterre / Upline Capital Management**
+**Auteur :** TAHIR Badr-eddine  |  **Encadrant pédagogique :** M. Sbai Hicham  |  **Encadrante professionnelle :** Mme Amrani Hanchi Wafae  |  **2022–2023**
 
 ---
 
 ## Résumé
 
-[À COMPLÉTER : coller ici le résumé complet du mémoire — un paragraphe. Reprendre le texte du résumé tel qu'il figure dans le PDF.]
+Ce projet de fin d'études développe et implémente une stratégie d'investissement quantitative global macro multi-actifs, conçue pour surpasser les approches traditionnelles (portefeuille 60/40, gestion passive indicielle) dans des environnements de marché volatils et corrélés. En s'appuyant sur l'analyse des cycles macroéconomiques et la prévision d'indicateurs clés (PIB, IPC) via des modèles d'apprentissage automatique (LSTM), la stratégie identifie quatre régimes économiques — *Fire* (PIB↑, IPC↑), *Goldilocks* (PIB↑, IPC↓), *Stagflation* (PIB↓, IPC↑) et *Ice* (PIB↓, IPC↓) — et alloue dynamiquement un portefeuille d'ETFs américains (actions, obligations, matières premières) en fonction du régime détecté. Trois méthodes d'optimisation de portefeuille sont comparées : Mean-Variance, CVaR et Risk Parity. Les résultats montrent que la stratégie surperforme le S&P 500 (SPY) sur la période backtestée, avec un drawdown maximum significativement inférieur.
 
 ## Contexte
 
-Ce mémoire développe une stratégie d'investissement systématique global macro multi-actifs, traduisant l'analyse des cycles macroéconomiques en décisions concrètes d'allocation de portefeuille. Les travaux ont été menés en parallèle de mon stage buy-side chez BCP / Upline Capital Management (Casablanca), où une version préliminaire du framework a été implémentée sur un portefeuille d'ETFs américains, surperformant le S&P 500 de 4,5 % en risque ajusté (avant frais).
+Ce travail a été réalisé dans le cadre d'un stage au sein du pôle gestion alternative chez **Upline Capital Management** (Casablanca, Maroc), filiale à 100 % du Groupe Banque Centrale Populaire. UCM gère environ 8 milliards de dollars d'actifs sous gestion. L'objectif était de développer une stratégie quantitative multi-actifs pour le desk de placements internationaux, capable de générer des rendements supérieurs à l'indice de référence, y compris dans des contextes de ralentissement économique.
 
 ## Données
 
-- **Univers d'investissement :** [À COMPLÉTER : ex. ETFs américains couvrant actions, obligations, matières premières et cash — lister les tickers ou classes d'actifs spécifiques]
-- **Période d'étude :** [À COMPLÉTER : ex. janvier 2010 – décembre 2023]
-- **Indicateurs macroéconomiques :** [À COMPLÉTER : ex. pente de la courbe des taux, ISM PMI, taux de chômage, CPI, indicateurs de conditions financières, spreads de crédit]
-- **Sources :** [À COMPLÉTER : ex. FRED, Bloomberg, FactSet]
+- **Univers d'investissement :** ~70 ETFs américains couvrant actions (sectoriels, factoriels, large/mid/small cap), obligations (Treasuries, TIPS, IG corporate), matières premières (or, pétrole, agriculture, métaux) et instruments short (ProShares inverse ETFs)
+- **Période :** Janvier 1999 – Juin 2023 (données mensuelles/trimestrielles)
+- **Indicateurs macroéconomiques :** ISM PMI Manufacturing, PMI Services, Consumer Confidence (UMich, Conference Board), NFIB, Non-Farm Payrolls, Initial Claims, CPI, PPI, Retail Sales, Industrial Production, Housing Starts/Permits, M2, Fed Funds Rate, 10Y-2Y Treasury Spread, WTI, Gold, et d'autres
+- **Sources :** Bloomberg, FactSet
 
 ## Méthodologie
 
-[À COMPLÉTER : détailler chaque point — c'est la section la plus lue par les recruteurs.]
+Le pipeline se décompose en quatre étapes :
 
-- **Identification des régimes macroéconomiques :** [À COMPLÉTER : ex. framework des phases du cycle économique (expansion / ralentissement / récession / reprise), ou méthode de détection de régimes — HMM, règles de seuil, basé sur l'output gap]
-- **Construction des signaux :** [À COMPLÉTER : comment les variables macro sont transformées en signaux d'allocation]
-- **Règle d'allocation :** [À COMPLÉTER : ex. tilts sectoriels/asset-class par régime, overlay risk-parity, optimisation moyenne-variance sous contraintes macro]
-- **Rebalancement :** [À COMPLÉTER : fréquence et gestion du turnover]
-- **Benchmark :** [À COMPLÉTER : ex. S&P 500, portefeuille 60/40, portefeuille multi-actifs équipondéré]
+### 1. Sélection des indicateurs macroéconomiques
+- Analyse de corrélation (seuil ≥ 0.4) entre les indicateurs et le PIB / IPC pour filtrer les variables les plus prédictives
+- Régression linéaire simple pour valider la significativité statistique de chaque indicateur retenu
+- Construction d'une grille de notation (scoring) transformant les valeurs des indicateurs en signaux directionnels sur le PIB et l'IPC
+
+### 2. Prévision macroéconomique (LSTM)
+- Modèle LSTM (Long Short-Term Memory) entraîné pour chaque indicateur macroéconomique sélectionné
+- Variables explicatives spécifiques identifiées pour chaque indicateur via analyse de corrélation
+- Prévisions glissantes sur 48 mois, évaluées sur MSE, RMSE, MAE et R²
+- Les prévisions des indicateurs sont agrégées via la grille de notation pour produire un PIB et un IPC prévisionnels
+
+### 3. Allocation d'actifs par régime
+- Identification de quatre régimes économiques à partir des variations trimestrielles du PIB et de l'IPC prévisionnels :
+  - **Fire** : PIB haussier + IPC haussier → surpondération actions cycliques, matières premières
+  - **Goldilocks** : PIB haussier + IPC baissier → surpondération actions growth, obligations longues
+  - **Stagflation** : PIB baissier + IPC haussier → surpondération énergie, short sur indices et immobilier
+  - **Ice** : PIB baissier + IPC baissier → surpondération défensives, short sur cycliques et technologie
+- Pour chaque régime, sélection des ETFs dont la performance historique dans ce régime dépasse leur moyenne et dont le ratio rendements positifs/négatifs est favorable
+- Positions short via ETFs inverses (ProShares) pour les actifs sous-performants dans le régime détecté
+
+### 4. Optimisation de portefeuille
+Trois approches comparées pour la pondération des actifs sélectionnés :
+- **Mean-Variance (MVO)** : portefeuille à variance minimale et portefeuille Max Sharpe, avec contraintes de poids entre 2 % et 8 % par actif
+- **CVaR (Conditional Value-at-Risk)** : minimisation des pertes extrêmes au-delà du seuil de VaR
+- **Risk Parity** : équilibrage de la contribution au risque de chaque actif
 
 ## Résultats Principaux
 
-[À COMPLÉTER : 2-3 conclusions concrètes. Si la stratégie a effectivement délivré les 4,5 % de surperformance mentionnés sur le CV, l'énoncer ici avec la fenêtre exacte et préciser si c'est brut ou en risque ajusté. Exemples :]
+Performance des portefeuilles optimisés vs. le benchmark SPY (S&P 500), sur la période complète (janv. 1999 – juin 2023) :
 
-- La stratégie a surperformé le benchmark S&P 500 de 4,5 % en risque ajusté (avant frais) sur la période out-of-sample [À COMPLÉTER : dates]
-- [À COMPLÉTER : ratio de Sharpe, drawdown maximum, taux de réussite]
-- [À COMPLÉTER : quels régimes macro ont le plus / le moins contribué à la performance]
+| Approche | Rendement annualisé | Volatilité annualisée | Ratio de Sharpe | Max Drawdown |
+|---|---|---|---|---|
+| **Mean-Variance (Max Sharpe)** | **12,57 %** | 24,97 % | **0,34** | −19,37 % |
+| **CVaR (Min Variance)** | 10,15 % | 21,68 % | 0,32 | −15,63 % |
+| **Risk Parity** | 6,05 % | 12,50 % | 0,22 | **−8,27 %** |
+| **SPY (Benchmark)** | 5,58 % | 26,30 % | 0,09 | −23,65 % |
+
+**Principaux constats :**
+- Les trois approches surperforment le benchmark SPY en rendement ajusté au risque (Sharpe supérieur)
+- L'approche Mean-Variance Max Sharpe offre le meilleur rendement absolu (12,57 % vs 5,58 %) avec un Sharpe de 0,34 contre 0,09 pour le SPY
+- L'approche Risk Parity offre la meilleure protection contre les baisses (max drawdown de −8,27 % contre −23,65 % pour le SPY) tout en maintenant un rendement supérieur au benchmark
+- L'approche CVaR constitue un compromis entre rendement et gestion du risque extrême, avec un drawdown de −15,63 %
+- L'allocation par régime permet de capter les tendances haussières tout en réduisant l'exposition lors des phases de contraction
 
 ## Structure du Dépôt
 
 ```
-├── these.pdf               # Mémoire complet
-├── code/                   # Code d'analyse et de backtest
+├── these.pdf               # Mémoire complet (en français)
+├── code/                   # Code d'analyse et de backtest (Python)
 │   └── ...
 └── README.md
 ```
 
 ## Environnement Technique
 
-[À COMPLÉTER : langages et bibliothèques utilisés — ex. Python (pandas, numpy, bibliothèque de backtest), R, Excel/VBA. Si les backtests peuvent être reproduits à partir du code, le préciser ici.]
+Python 3, avec `pandas`, `numpy`, `keras`/`tensorflow` (LSTM), `scipy.optimize` (optimisation de portefeuille), `matplotlib`. Les backtests sont réalisés sur données trimestrielles avec rebalancement par régime.
 
 ## Travaux Connexes
 
-Un mémoire ultérieur, étendant ce framework avec des méthodes de statistical learning appliquées à l'allocation sectorielle actions, a été réalisé à NEOMA Business School en 2025 :
+Un mémoire ultérieur, étendant ce framework avec des méthodes de statistical learning appliquées à l'allocation sectorielle actions sur les 11 secteurs GICS, a été réalisé à NEOMA Business School en 2025 :
 👉 [Statistical Learning for US Sectoral Equity Allocation](https://github.com/badreddinetahir0/sectoral-equity-allocation-neoma_thesis)
 
 ## Contact
